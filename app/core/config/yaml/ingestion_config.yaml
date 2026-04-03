@@ -1,0 +1,45 @@
+# ============================================================
+# INGESTION CONFIG - PDF / chunking / embedding / vector store
+# File này chứa các cấu hình liên quan đến quá trình ingestion tài liệu, bao gồm xử lý PDF, chunking, embedding và vector store.
+# Mục đích:
+# - Định nghĩa cách thức xử lý PDF (đường dẫn, regex nhận diện cấu trúc pháp lý)
+# - Cấu hình chiến lược chunking (kích thước chunk, overlap, cách xử lý chunk nhỏ, v.v.)
+# - Cấu hình embedding (provider, model, dimension, batch size, retry logic)
+# - Cấu hình vector store (loại, đường dẫn lưu trữ, tên collection, distance metric)
+# ============================================================
+
+pdf_processing:
+  raw_pdf_dir: "./data/raw_pdfs"
+  processed_dir: "./data/processed" # Nơi lưu trữ các file đã được xử lý (text, metadata)
+  legal_patterns:
+    part: "^PHẦN THỨ\\s+(NHẤT|HAI|BA|BỐN|NĂM|SÁU|BẢY|TÁM|CHÍN|MƯỜI)"
+    chapter: "^Chương\\s+[IVXLCDM]+"
+    section: "^Mục\\s+\\d+"
+    article: "^Điều\\s+\\d+\\."
+    clause: "^\\d+\\.\\s+"
+    point: "^[a-zđ]\\)\\s+"
+
+chunking:
+  strategy: "hierarchical_legal" # Chọn chiến lược theo cấu trúc luật (chương > mục > điều > khoản > điểm) để giữ nguyên ngữ nghĩa pháp lý và truy hồi đúng cấp văn bản.
+  chunk_size: 512 # Giữ đủ lớn để một điều luật hoặc một cụm khoản ngắn thường nằm gọn trong một chunk, nhưng vẫn hạn chế chi phí embedding và truy hồi.
+  chunk_overlap: 50 # Cho phép chồng lấn nhẹ giữa các chunk để không mất câu nối hoặc điều kiện pháp lý nằm ở ranh giới cắt.
+  min_chunk_size: 80 # Tránh sinh các mảnh quá nhỏ, vì chunk quá ngắn thường nghèo ngữ cảnh và dễ làm giảm chất lượng truy hồi.
+  on_small_chunk: "merge_next" # Ghép mảnh nhỏ với phần kế tiếp để giảm chunk rác và giữ ngữ cảnh đủ dùng cho luật.
+  preserve_article_boundary: true # Ưu tiên không cắt vỡ ranh giới điều/khoản, vì cấu trúc này là đơn vị lập luận chính trong văn bản luật.
+  include_parent_context: true # Thêm ngữ cảnh prefix ngắn đã khai báo ở Legal_chunk (chương/mục/điều) để model hiểu chunk đang nằm ở đâu trong hệ thống pháp lý. (ví dụ: "Điều 123 thuộc Chương 5 về Hợp đồng")
+  separator: "\n" # Giữ xuống dòng rõ ràng để bảo toàn format luật và hỗ trợ đọc/ghi chunk dễ hơn.
+
+embedding:
+  provider: "cohere"
+  model: "embed-multilingual-v3.0"
+  dimension: 1024
+  api_key_env: "COHERE_API_KEY"
+  batch_size: 96
+  max_retries: 3
+  retry_backoff_s: 1.5
+
+vector_store:
+  type: "chromadb"
+  persist_directory: "./vectorstore"
+  collection_name: "legal_documents"
+  distance_metric: "cosine"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.ingestion.legal_chunker import LegalChunker
-from src.ingestion.pdf_processor import LegalStructure, RawBlock
+from app.ingestion.legal_chunker import LegalChunker
+from app.ingestion.pdf_processor import LegalStructure, RawBlock
 
 
 def test_preamble_is_not_indexed_but_is_available_in_metadata() -> None:

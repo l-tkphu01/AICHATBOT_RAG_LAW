@@ -72,7 +72,7 @@ Hệ thống sẽ tự động:
 
 ```bash
 # Chạy pipeline nạp PDF vào vector database
-docker compose exec backend python -m src.ingestion.run_ingestion
+docker compose exec backend python -m app.ingestion.run_ingestion
 ```
 
 ### Dừng hệ thống
@@ -109,10 +109,10 @@ copy .env.example .env
 alembic upgrade head
 
 # Nạp dữ liệu luật
-python -m src.ingestion.run_ingestion
+python -m app.ingestion.run_ingestion
 
 # Chạy backend
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 > ⚠️ Khi chạy local cần có PostgreSQL và Redis chạy sẵn trên máy, hoặc chỉ chạy 2 service đó bằng Docker:
@@ -140,7 +140,7 @@ Frontend sẽ chạy tại [http://localhost:5173](http://localhost:5173) (Vite 
 
 ```
 CHATBOT RAG/
-├── src/                    # Backend (FastAPI + RAG Pipeline)
+├── app/                    # Backend (FastAPI + RAG Pipeline)
 │   ├── api/                #   API endpoints, middleware
 │   ├── ingestion/          #   PDF → Chunks → Embeddings → ChromaDB
 │   ├── retrieval/          #   Hybrid Search + Reranking
@@ -149,7 +149,7 @@ CHATBOT RAG/
 │   ├── utils/              #   Config, DB, Cache, Logger
 │   └── pipeline.py         #   RAG Pipeline orchestrator
 ├── frontend/               # Frontend (React + Vite)
-│   └── src/
+│   └── app/
 │       ├── components/     #   ChatMessage, CitationCard, ...
 │       ├── pages/          #   ChatPage, UploadPage
 │       ├── services/       #   API calls
@@ -187,7 +187,7 @@ docker compose logs postgres -f    # Xem log database
 docker compose exec backend bash   # Truy cập container backend
 
 # Backend (local)
-uvicorn src.api.main:app --reload  # Chạy dev server
+uvicorn app.api.main:app --reload  # Chạy dev server
 alembic upgrade head               # Chạy migration
 alembic revision --autogenerate -m "message"  # Tạo migration mới
 pytest                             # Chạy tests

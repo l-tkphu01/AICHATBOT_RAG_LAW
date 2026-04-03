@@ -1,0 +1,26 @@
+# ============================================================
+# CONFIG MANIFEST - (Bảng điều phối Entry Point cho tất cả config module)
+#
+# File này đóng vai trò là entry point để load tất cả các config module khác (ingestion, query, generation, validation, guardian, models, prompts) vào một cấu trúc config tổng thể.
+# Mục đích: 
+# Để có một nơi duy nhất để quản lý các đường dẫn đến file config của từng module, giúp việc maintain và mở rộng dễ dàng hơn mà không cần phải sửa nhiều chỗ trong code khi thêm/sửa module.
+# Giúp hệ thống biết cần load những config nào và từ đâu, đồng thời cũng giúp tránh việc quên load config của module nào đó khi chạy hệ thống.
+# Tránh việc phải hardcode đường dẫn đến từng file config trong code, mà chỉ cần sửa ở một chỗ duy nhất nếu có thay đổi cấu trúc thư mục hoặc tên file.
+# Các file config module khác sẽ chứa các tham số chi tiết hơn cho từng chức năng cụ thể (ví dụ: ingestion_config.yaml sẽ có các tham số liên quan đến xử lý PDF, chunking, embedding, vector store; query_config.yaml sẽ có các tham số liên quan đến retrieval, reranking, query processing; models_config.yaml sẽ map tên model theo vai trò sử dụng; guardian_config.yaml sẽ có các quy tắc và regex để phân loại câu hỏi; prompts_config.yaml sẽ chứa các template prompt cho từng tình huống).
+# ============================================================
+
+metadata:
+  name: "chatbot_rag_manifest"
+  version: "2.0.0"
+  purpose: "Module-based configuration manifest"
+  scope: "domain/module" # Chỉ những module được liệt kê trong config_sources mới được load, giúp tránh việc load nhầm config không liên quan.
+
+config_sources:
+  system: "./system_config.yaml"
+  ingestion: "./ingestion_config.yaml"
+  query: "./query_config.yaml"
+  validation: "./validation_config.yaml"
+  guardian: "./guardian_config.yaml"
+  models: "./models_config.yaml"
+  prompts: "./prompts_config.yaml"
+  prompts: "./prompts_config.yaml"

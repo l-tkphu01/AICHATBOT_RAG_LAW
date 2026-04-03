@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 
-from src.ingestion.legal_chunker import LegalChunker
-from src.ingestion.pdf_processor import LegalStructure, RawBlock
+from app.ingestion.legal_chunker import LegalChunker
+from app.ingestion.pdf_processor import LegalStructure, RawBlock
 
 
 def test_clause_point_structure_is_not_broken_when_splitting() -> None:

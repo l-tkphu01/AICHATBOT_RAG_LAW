@@ -5,36 +5,36 @@
       "config": {
         "chunk_size": 512,
         "chunk_overlap": 50,
-        "min_chunk_size": 80,
+        "min_chunk_size": 150,
         "on_small_chunk": "merge_next"
       },
       "summary": {
-        "total": 233,
-        "child": 198,
+        "total": 232,
+        "child": 197,
         "parent": 35,
-        "child_avg_tokens": 294.28,
-        "child_util": 0.5748,
-        "child_small_rate": 0.0253,
+        "child_avg_tokens": 295.74,
+        "child_util": 0.5776,
+        "child_small_rate": 0.1624,
         "child_large_rate": 0.0,
-        "parent_rate": 0.1502,
-        "max_child_tokens": 508,
+        "parent_rate": 0.1509,
+        "max_child_tokens": 510,
         "max_parent_tokens": 2026,
         "min_child_tokens": 39
       },
       "embedding": {
-        "status": "skipped_no_api_key",
+        "status": "skipped_missing_provider_dependency",
         "actual": false,
-        "vectors": 198,
+        "vectors": 197,
         "vector_dim": 1024,
         "embed_s": 0.0,
-        "tokens_to_embed": 58267.44,
-        "estimated_cost_proxy": 58267.44,
-        "note": "VOYAGE_API_KEY not found; embedding request skipped and cost is estimated from child token volume."
+        "tokens_to_embed": 58260.78,
+        "estimated_cost_proxy": 58260.78,
+        "note": "Provider 'cohere' is configured but package is not importable in current interpreter."
       },
       "timings": {
-        "process_s": 0.3148,
-        "chunk_s": 0.0164,
-        "total_s": 0.3312
+        "process_s": 0.5132,
+        "chunk_s": 0.0294,
+        "total_s": 0.5425
       }
     }
   ]

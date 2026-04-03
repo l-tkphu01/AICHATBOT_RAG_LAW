@@ -1,0 +1,47 @@
+# ============================================================
+# SYSTEM CONFIG - App / database / API / logging
+# File này chứa các cấu hình hệ thống chung như app, database, API, logging. 
+# Nó không xử lý logic AI mà quy định cách hệ thống vận hành.
+# ============================================================
+
+# ============================================================
+# Mục đích (app, database, API, logging): 
+# - Dùng để hiển thị UI 
+# - Lưu Logs
+# - Quản lý version
+# - Lưu trữ metadata chung
+# - Lưu lịch sử chat
+# - Quản lý session người dùng 
+# - lưu vector (nếu dùng pgvector)
+# ============================================================
+app:
+  name: "Chatbot Luật Việt Nam"
+  version: "1.0.0"
+  description: "AI Chatbot RAG chuyên về Luật Hôn nhân & Gia đình và Luật Kinh tế"
+
+database:
+  driver: "postgresql+asyncpg"
+  host: "postgres"
+  port: 5432
+  user: "chatbot_user"
+  password: "chatbot_pass_2026"
+  name: "chatbot_rag"
+  pool_size: 10
+  max_overflow: 20
+
+api:
+  host: "0.0.0.0" # Truy cập từ mọi API
+  port: 8000 # Server chạy ở cổng 8000
+  cors_origins:
+    - "http://localhost:3000" # Frontend React chạy ở cổng 3000
+    - "http://localhost:5173" # Frontend Vite chạy ở cổng 5173
+  rate_limit: 30
+  max_session_history: 10 # Lưu trữ lịch sử chat gần nhất cho mỗi session để cung cấp ngữ cảnh khi cần thiết
+
+logging:
+  level: "INFO" 
+  log_dir: "./logs"
+  log_queries: true  # Ghi lại câu hỏi người dùng
+  log_retrievals: true # Ghi lại kết quả retrieval 
+  log_query_rewrites: true # Ghi lại các câu hỏi đã được rewrite trước khi gửi vào model
+  log_guardrail_decisions: true # Ghi lại quyết định của guardian (safe/unsafe/out-of-scope) để theo dõi và cải thiện mô hình guardian theo thời gian

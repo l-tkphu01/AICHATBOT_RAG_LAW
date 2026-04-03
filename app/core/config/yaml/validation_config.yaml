@@ -1,0 +1,17 @@
+# ============================================================
+# VALIDATION CONFIG - Citation / faithfulness / confidence
+# File này chứa các cấu hình liên quan đến quá trình đánh giá và xác thực kết quả trả về từ LLM, bao gồm:
+# - Các tham số để kiểm tra trích dẫn (citation check), độ trung thực (faithfulness check) và điểm tin cậy (confidence score).
+# - Ngưỡng để xác định khi nào cần cảnh báo về trích dẫn không đủ tin cậy hoặc khi nào cần cảnh báo về độ trung thực của câu trả lời.
+# Mục đích: 
+# - Đảm bảo rằng các câu trả lời được trả về không chỉ dựa trên thông tin đã được truy xuất mà còn phải có trích dẫn rõ ràng và độ trung thực cao, từ đó tăng độ tin cậy và an toàn cho người dùng khi tương tác với chatbot.
+# ============================================================
+
+validation:
+  enable_citation_check: true
+  enable_faithfulness_check: true
+  enable_confidence_score: true
+  faithfulness_threshold: 8
+  confidence_threshold: 0.65
+  citation_threshold: 0.95
+  judge_model: "gemini-2.0-flash"

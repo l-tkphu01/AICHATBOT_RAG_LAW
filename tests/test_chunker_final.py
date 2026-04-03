@@ -13,13 +13,13 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     yaml = None
 
-from src.ingestion.legal_chunker import LegalChunker
-from src.ingestion.embedder import EmbeddingGenerator
-from src.ingestion.pdf_processor import LegalPDFProcessor
+from app.ingestion.legal_chunker import LegalChunker
+from app.ingestion.embedder import EmbeddingGenerator
+from app.ingestion.pdf_processor import LegalPDFProcessor
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+CONFIG_PATH = PROJECT_ROOT / "app" / "core" / "config" / "yaml" / "config.yaml"
 RAW_PDF_DIR = PROJECT_ROOT / "data" / "raw_pdfs"
 EVALUATION_DIR = PROJECT_ROOT / "data" / "evaluation"
 REPORT_PATH = EVALUATION_DIR / "chunker_embedding_report.json"
@@ -77,9 +77,29 @@ def _summarize_chunks(chunks: list, chunk_size: int, min_chunk_size: int) -> dic
 
 
 def _summarize_embedding(chunks: list, summary: dict) -> dict:
-    api_key = os.getenv("VOYAGE_API_KEY", "").strip()
+    provider = "unknown"
+    try:
+        probe_embedder = EmbeddingGenerator()
+        provider = str(getattr(probe_embedder, "provider", "unknown")).lower()
+    except Exception:
+        provider = "unknown"
+
     child_count = summary["child"]
     child_tokens = summary["child_avg_tokens"] * child_count if child_count else 0.0
+
+    if provider != "cohere":
+        return {
+            "status": "skipped_non_cohere_provider",
+            "actual": False,
+            "vectors": child_count,
+            "vector_dim": 1024,
+            "embed_s": 0.0,
+            "tokens_to_embed": round(child_tokens, 2),
+            "estimated_cost_proxy": round(child_tokens, 2),
+            "note": f"Embedding provider '{provider}' is not supported by this readiness test; expected 'cohere'.",
+        }
+
+    api_key = os.getenv("COHERE_API_KEY", "").strip()
 
     if not api_key:
         return {
@@ -90,7 +110,21 @@ def _summarize_embedding(chunks: list, summary: dict) -> dict:
             "embed_s": 0.0,
             "tokens_to_embed": round(child_tokens, 2),
             "estimated_cost_proxy": round(child_tokens, 2),
-            "note": "VOYAGE_API_KEY not found; embedding request skipped and cost is estimated from child token volume.",
+            "note": "COHERE_API_KEY not found; embedding request skipped and cost is estimated from child token volume.",
+        }
+
+    try:
+        import cohere  # type: ignore[import-not-found]  # noqa: F401
+    except ImportError:
+        return {
+            "status": "skipped_missing_provider_dependency",
+            "actual": False,
+            "vectors": child_count,
+            "vector_dim": 1024,
+            "embed_s": 0.0,
+            "tokens_to_embed": round(child_tokens, 2),
+            "estimated_cost_proxy": round(child_tokens, 2),
+            "note": "Provider 'cohere' is configured but package is not importable in current interpreter.",
         }
 
     embedder = EmbeddingGenerator()
@@ -108,7 +142,7 @@ def _summarize_embedding(chunks: list, summary: dict) -> dict:
         "tokens_to_embed": round(child_tokens, 2),
         "estimated_cost_proxy": round(child_tokens, 2),
         "tokens_per_second": round((child_tokens / embed_s) if embed_s > 0 else 0.0, 2),
-        "note": "Actual Voyage embeddings completed successfully.",
+        "note": "Actual Cohere embeddings completed successfully.",
     }
 
 

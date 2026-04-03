@@ -1,0 +1,93 @@
+# ============================================================
+# MODEL CONFIGS - Model refs theo chức năng
+#
+# File này map tên model theo vai trò sử dụng. Logic gọi model vẫn nằm
+# ở code, còn file này trả lời câu hỏi: model nào phục vụ chức năng nào.
+# ============================================================
+
+runtime:
+  # Main safety guard: Classify safe / unsafe / out-of-scope.
+  guard:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.1
+    max_tokens: 64
+    timeout_s: 12
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+    response_format: "json_object"
+
+  # Fast guard: Lớp kiểm tra nhanh (dùng 70B qua Groq cho chắc chắn mà vẫn rẻ)
+  fast_guard:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.0
+    timeout_s: 8
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+    score_threshold: 0.55
+
+  # Deep guard: Lớp kiểm tra sâu
+  deep_guard:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.0
+    timeout_s: 12
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+    response_format: "json_object"
+
+  # Query rewriter / Multi-query generator: Dùng model nhỏ (8B) cho tác vụ rewrite ngữ pháp
+  query_rewriter:
+    provider: "groq"
+    model_id: "llama-3.1-8b-instant"
+    temperature: 0.1
+    max_tokens: 1024
+    timeout_s: 8
+    response_format: "json_object"
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+
+  # Embedding model for chunk/query vectorization
+  embedding:
+    provider: "cohere"
+    model_id: "embed-multilingual-v3.0"
+    timeout_s: 30
+    batch_size: 96
+
+  # Router for query routing / classification support
+  semantic_router:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.0
+    timeout_s: 8
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+
+  # Judge / evaluator for context quality or faithfulness checks
+  context_evaluator:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.0
+    timeout_s: 12
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+
+  # RAG Generator model (Sinh cấu trả lời cuối - ngữ cảnh dài, giá cực rẻ qua OpenRouter)
+  generator:
+    provider: "openrouter"
+    model_id: "google/gemma-4-31b-it"
+    temperature: 0.1
+    max_tokens: 1536
+    timeout_s: 30
+
+  # Intent fallback classifier cho tiếng Việt
+  intent_fallback:
+    provider: "groq"
+    model_id: "llama-3.3-70b-versatile"
+    temperature: 0.1
+    max_tokens: 512
+    reasoning_format: "hidden"
+    timeout_s: 15
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"

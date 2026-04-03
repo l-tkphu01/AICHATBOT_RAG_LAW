@@ -597,7 +597,7 @@ CHATBOT_RAG/
 │       ├── test_questions.json
 │       └── ground_truth.json
 │
-├── 📁 src/
+├── 📁 app/
 │   ├── 📁 ingestion/               # Pipeline nạp dữ liệu
 │   │   ├── __init__.py
 │   │   ├── pdf_processor.py        # Trích xuất PDF

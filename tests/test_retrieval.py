@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 
-from src.ingestion.indexer import LegalIndexer
+from app.ingestion.indexer import LegalIndexer
 
 
 class _FakeChildCollection:
