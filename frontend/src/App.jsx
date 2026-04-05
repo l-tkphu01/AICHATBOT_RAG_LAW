@@ -47,7 +47,7 @@ function App() {
   const { messages, loading, error, reset, cancel, send, ui } = useChat()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
-  const maxQueryChars = 500
+  const maxQueryChars = 2000
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -158,7 +158,7 @@ function App() {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Nhập câu hỏi của bạn tại đây… (tối đa 500 ký tự)"
+              placeholder="Nhập câu hỏi của bạn tại đây… (tối đa 2000 ký tự)"
               maxLength={maxQueryChars}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

@@ -14,11 +14,11 @@ metadata:
 # LỚP 0: Input Validation 
 # ----------------------------------------------------------
 input_validation:
-  max_input_chars: 3000
-  summarize_threshold: 1500
-  max_input_lines: 40
+  max_input_chars: 2000
+  summarize_threshold: 1000
+  max_input_lines: 30
   hard_limit_action: "reject"
-  warning_threshold: 2500
+  warning_threshold: 1800
   summarize_action: "summarize_then_classify"
   reject_message_key: "input_too_long"
 

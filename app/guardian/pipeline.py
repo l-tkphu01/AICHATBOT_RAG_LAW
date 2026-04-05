@@ -1,4 +1,5 @@
 import re
+import random
 from typing import Dict, Any, Tuple, List, Pattern
 from app.utils.config_loader import Settings
 from app.guardian.normalizer import Normalizer
@@ -58,12 +59,7 @@ class GuardianPipeline:
     def _looks_legal_domain(self, query: str) -> bool:
         normalized = query.lower()
         fallback_keywords = self.settings.guardian_config.get('intent_fallback', {}).get('fallback_keywords', {})
-        legal_signals = fallback_keywords.get('legal_domain', [
-            'luật', 'nghị định', 'thông tư', 'điều', 'khoản', 'điểm', 'ly hôn',
-            'hôn nhân', 'gia đình', 'thuế', 'khai thuế', 'hoàn thuế', 'hợp đồng',
-            'lao động', 'doanh nghiệp', 'đất đai', 'thừa kế', 'khởi kiện', 'tranh chấp',
-            'bồi thường', 'phạt', 'xử phạt', 'tòa án', 'hồ sơ', 'thủ tục'
-        ])
+        legal_signals = fallback_keywords.get('legal_domain', [])
         return any(keyword in normalized for keyword in legal_signals)
 
     def _is_legal_information_query(self, query: str) -> bool:
@@ -105,16 +101,50 @@ class GuardianPipeline:
         result["normalized_query"] = normalized_query
         
         # 2. Limit validations
-        # Very simple validation from input_validation layer
-        max_chars = self.settings.guardian_config.get("input_validation", {}).get("max_input_chars", 3000)
+        input_settings = self.settings.guardian_config.get("input_validation", {})
+        max_chars = input_settings.get("max_input_chars", 2000)
+        max_lines = input_settings.get("max_input_lines", 30)
+        summarize_threshold = input_settings.get("summarize_threshold", 1000)
+        warning_threshold = input_settings.get("warning_threshold", 1800)
+        hard_limit_action = input_settings.get("hard_limit_action", "reject")
+        reject_message_key = input_settings.get("reject_message_key", "input_too_long")
+        
+        reject_message = self.system_messages.get(reject_message_key, "Câu hỏi quá dài hoặc chứa quá nhiều dòng trống.")
+        
+        # Check max lines
+        # Sửa lỗi: raw_query đếm dòng chính xác hơn vì normalized_query có thể đã bị collapse_repeated_spaces
+        line_count = len(raw_query.split("\n"))
+        if line_count > max_lines:
+            if hard_limit_action == "reject":
+                result.update({
+                    "action": "reject_or_refuse",
+                    "status": "unsafe",
+                    "reasoning": f"Query exceeds max lines: {max_lines} (got {line_count})",
+                    "response": reject_message
+                })
+                return result
+                
+        # Check max chars
         if len(normalized_query) > max_chars:
-            result.update({
-                "action": "reject_or_refuse",
-                "status": "unsafe",
-                "reasoning": f"Query exceeds max chars: {max_chars}",
-                "response": self.system_messages.get("input_too_long", "CÃ¢u há»i quÃ¡ dÃ i.")
-            })
-            return result
+            if hard_limit_action == "reject":
+                result.update({
+                    "action": "reject_or_refuse",
+                    "status": "unsafe",
+                    "reasoning": f"Query exceeds max chars: {max_chars}",
+                    "response": reject_message
+                })
+                return result
+
+        # Check soft thresholds
+        if len(normalized_query) > warning_threshold:
+            result["warning"] = f"Query length is near the hard limit ({len(normalized_query)} chars)."
+        
+        if len(normalized_query) > summarize_threshold:
+            result["action"] = input_settings.get("summarize_action", "summarize_then_classify")
+            result["reasoning"] = f"Query length ({len(normalized_query)}) exceeds summarize threshold ({summarize_threshold})."
+            # NOTE: If "summarize_then_classify" action is flagged, the main pipeline or intent classifier 
+            # should handle it by calling the llm to summarize it using "guard_input_summarizer" prompt.
+            # We pass the action through to signal downstream processing.
 
         # 3. Feature Extraction
         features = self.feature_extractor.extract_features(normalized_query)
@@ -131,11 +161,15 @@ class GuardianPipeline:
         # 4. Hard Gate Rules
         is_blocked, action, reason = self.hard_gate.evaluate(features)
         if is_blocked:
+            refuse_msg = self.system_messages.get("refuse_unsafe_query", ["Xin lỗi, tôi không thể hỗ trợ câu hỏi này."])
+            if isinstance(refuse_msg, list):
+                refuse_msg = random.choice(refuse_msg)
+                
             result.update({
                 "action": "reject_or_refuse",
                 "status": action,
                 "reasoning": f"Blocked by Hard Gate Rule: {reason}",
-                "response": self.system_messages.get("refuse_unsafe_query", "Xin lá»—i, tÃ´i khÃ´ng thá»ƒ há»— trá»£ cÃ¢u há»i nÃ y.")
+                "response": refuse_msg
             })
             return result
             
@@ -184,7 +218,10 @@ class GuardianPipeline:
         
         if result["action"] in ["reject_or_refuse", "request_more_context"]:
             response_key = routing_policy.get("response_key")
-            result["response"] = self.system_messages.get(response_key, "TÃ´i khÃ´ng thá»ƒ tráº£ lá»i cÃ¢u há»i nÃ y.")
+            response_msg = self.system_messages.get(response_key, ["Tôi không thể trả lời câu hỏi này."])
+            if isinstance(response_msg, list):
+                response_msg = random.choice(response_msg)
+            result["response"] = response_msg
             # Cập nhật lại status của result để báo hiệu hệ thống chặn
             result["status"] = intent_category
             

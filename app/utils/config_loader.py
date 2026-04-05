@@ -232,10 +232,10 @@ class Settings:
 
         return current
 
-    def get_prompt(self, prompt_key: str, default: str = "") -> str:
-        """Return a prompt text by key from prompts_config.prompts."""
+    def get_prompt(self, prompt_key: str, default: Any = "") -> Any:
+        """Return a prompt text (or list of texts) by key from prompts_config.prompts."""
         prompt_value = self.resolve_ref(f"prompts_config.{prompt_key}", default=default)
-        return prompt_value if isinstance(prompt_value, str) else default
+        return prompt_value if isinstance(prompt_value, (str, list)) else default
 
     def _validate_model_ref(self, label: str, model_ref: Any) -> None:
         if not isinstance(model_ref, str) or not model_ref.strip():
@@ -250,12 +250,12 @@ class Settings:
 
         if prompt_ref.startswith("prompts_config"):
             resolved = self.resolve_ref(prompt_ref, required=True)
-            if not isinstance(resolved, str):
-                raise ConfigError(f"{label} must point to prompt text: '{prompt_ref}'")
+            if not isinstance(resolved, (str, list)):
+                raise ConfigError(f"{label} must point to prompt text or a list of texts: '{prompt_ref}'")
             return
 
         prompt_text = self.get_prompt(prompt_ref)
-        if not isinstance(prompt_text, str) or not prompt_text:
+        if not isinstance(prompt_text, (str, list)) or not prompt_text:
             raise ConfigError(f"{label} references missing prompt key '{prompt_ref}'")
 
     def _validate_declared_refs(self) -> None:

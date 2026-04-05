@@ -14,6 +14,7 @@ from app.retrieval.query_processor import QueryProcessor
 from app.ingestion.embedder import EmbeddingGenerator
 from app.ingestion.indexer import LegalIndexer
 from app.retrieval.reranker import DocumentReranker
+from app.generation.llm_client import chat_completion
 from app.generation.generate import generate_answer
 
 class RAGPipeline:
@@ -48,6 +49,104 @@ class RAGPipeline:
         self.fusion_top_k = self.settings.fusion_top_k
         print(f"\033[1;32m  [HOÀN TẤT] Hệ thống online sau {(time.time()-t0):.2f}s.\033[0m\n")
 
+    @staticmethod
+    def _normalize_guard_label(label: Any) -> str:
+        if label is None:
+            return ""
+        text = str(label).strip().lower().replace("-", "_").replace(" ", "_")
+        aliases = {
+            "outofscope": "out_of_scope",
+            "out_of_scope.": "out_of_scope",
+            "unclear": "unclear_intent",
+            "ambiguous": "uncertain",
+            "blocked": "unsafe",
+        }
+        return aliases.get(text, text)
+
+    @staticmethod
+    def _normalize_soft_refusal_reason(query: str, status: str, intent_label: str) -> str:
+        q = (query or "").strip().lower()
+
+        if status in {"unsafe", "blocked"}:
+            return "unsafe_query"
+
+        greeting_markers = [
+            "xin chào", "xin chao", "chào", "chao", "hello", "hi ", " hi", "hey", "alo"
+        ]
+        small_talk_markers = [
+            "bạn khỏe", "ban khoe", "how are you", "cảm ơn", "cam on", "ok", "oke", "good morning", "good evening"
+        ]
+
+        if any(marker in q for marker in greeting_markers):
+            return "greeting"
+        if any(marker in q for marker in small_talk_markers):
+            return "small_talk"
+
+        if status in {"clarify", "uncertain", "unclear_intent"} or intent_label in {"clarify", "uncertain", "unclear_intent"}:
+            return "ambiguous_non_legal"
+
+        return "off_topic"
+
+    @staticmethod
+    def _soft_refusal_fallback(reason: str) -> str:
+        fallback_map = {
+            "greeting": "Xin chào! Mình là trợ lý tư vấn pháp luật Việt Nam, bạn đang cần hỗ trợ vấn đề pháp lý nào?",
+            "small_talk": "Mình tập trung hỗ trợ pháp luật Việt Nam. Bạn có tình huống pháp lý nào cần mình tra cứu không?",
+            "ambiguous_non_legal": "Bạn mô tả thêm bối cảnh để mình xác định đúng khía cạnh pháp lý và tra đúng điều luật nhé?",
+            "off_topic": "Mảng này nằm ngoài phạm vi hỗ trợ của mình. Nếu bạn cần tư vấn pháp luật Việt Nam, mình sẵn sàng hỗ trợ.",
+            "unsafe_query": "Nội dung này mình không thể hỗ trợ. Nếu bạn cần tư vấn pháp lý hợp lệ, mình sẵn sàng hỗ trợ.",
+        }
+        return fallback_map.get(reason, fallback_map["off_topic"])
+
+    def _generate_soft_refusal(self, query: str, reason: str = "off_topic", fallback_answer: str = "") -> str:
+        default_answer = (fallback_answer or "").strip() or self._soft_refusal_fallback(reason)
+        try:
+            model_cfg = getattr(self.settings, "models_config", {}).get("runtime", {}).get("soft_refusal", {})
+            prompt_cfg = getattr(self.settings, "prompts_config", {}).get("prompts", {})
+
+            if reason == "unsafe_query":
+                prompt_template = prompt_cfg.get("prompt_soft_refusal_unsafe", "")
+                if prompt_template:
+                    prompt = prompt_template.replace("{query}", query)
+                else:
+                    prompt = (
+                        "<system>\n"
+                        "Bạn là trợ lý AI tư vấn pháp luật Việt Nam. Nội dung người dùng vừa gửi đã bị hệ thống gắn nhãn unsafe.\n"
+                        "Hãy từ chối dứt khoát nhưng lịch sự, không cung cấp bất kỳ hướng dẫn nào có thể gây hại hoặc vi phạm pháp luật.\n"
+                        "Độ dài 1-2 câu, ngắn gọn, tự nhiên, không mở đầu bằng 'Xin lỗi' hoặc 'Rất tiếc'.\n"
+                        "Kết thúc bằng lời mời đặt câu hỏi pháp lý hợp lệ.\n"
+                        "</system>\n\n"
+                        "<user_input>\n"
+                        f"{query}\n"
+                        "</user_input>"
+                    )
+            else:
+                prompt_template = prompt_cfg.get("prompt_soft_refusal", "")
+                if not prompt_template:
+                    return default_answer
+                prompt = prompt_template.replace("{query}", query).replace("{reason}", reason)
+            provider = model_cfg.get("provider", "groq")
+            model_id = model_cfg.get("model_id", "llama-3.1-8b-instant")
+
+            resp = chat_completion(
+                provider=provider,
+                model_id=model_id,
+                messages=[
+                    {"role": "system", "content": "Bạn là trợ lý pháp luật Việt Nam, hãy tuân thủ đúng hướng dẫn system dưới đây."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=model_cfg.get("temperature", 0.6),
+                max_tokens=model_cfg.get("max_tokens", 220)
+            )
+
+            content = str(resp.get("text", "") or "").strip()
+            if not content:
+                content = str(resp.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
+
+            return content or default_answer
+        except Exception:
+            return default_answer
+
     def chat(self, query: str):
         print(f"\n\033[1;35m{'='*70}\033[0m")
         print(f"\033[1;37;44m  NGƯỜI DÙNG: \033[0m \033[1;33m{query}\033[0m")
@@ -64,21 +163,44 @@ class RAGPipeline:
             guard_res = self.guardian.process_query(query)
             
             # Xử lý dict siêu an toàn
-            status = guard_res.get("status", "unknown")
+            status = self._normalize_guard_label(guard_res.get("status", "unknown"))
             intent_info = guard_res.get("intent") or {}
-            intent_label = intent_info.get("intent", "unknown")
+            intent_label = self._normalize_guard_label(intent_info.get("intent", "unknown"))
+            action = self._normalize_guard_label(guard_res.get("action", ""))
             confidence = intent_info.get("confidence", 0.0)
             reason = guard_res.get("reasoning", "")
             bot_msg = guard_res.get("response", "")
+            effective_status = status if status != "safe" else intent_label
+            reason_code = self._normalize_soft_refusal_reason(query, status, intent_label)
 
             print(f"  Tốn: {time.time() - tg:.2f}s")
-            print(f"  Ý định: {intent_label.upper()} ({(confidence*100):.1f}%) | Trạng thái: {status.upper()}")
-            
-            if status != "safe":
-                print(f"\n\033[1;41m  BỊ CHẶN \033[0m \033[1;31m{bot_msg or reason}\033[0m")
+            print(f"  Ý định: {intent_label.upper()} ({(confidence*100):.1f}%) | Trạng thái: {status.upper()} | Action: {action.upper() if action else 'N/A'}")
+
+            if effective_status == "out_of_scope":
+                display_msg = self._generate_soft_refusal(
+                    query,
+                    reason_code,
+                    fallback_answer=bot_msg or reason or self._soft_refusal_fallback("off_topic"),
+                )
+                print(f"\n\033[1;43m  YÊU CẦU LÀM RÕ/TỪ CHỐI NHẸ \033[0m \033[1;33m{display_msg}\033[0m")
                 return
-            if intent_label == "out_of_scope":
-                print(f"\n\033[1;43m  LỆCH CHỦ ĐỀ \033[0m \033[1;33m{bot_msg or reason}\033[0m")
+
+            if effective_status in ["unclear_intent", "chitchat", "clarify", "uncertain"]:
+                display_msg = self._generate_soft_refusal(
+                    query,
+                    reason_code,
+                    fallback_answer=bot_msg or reason or self._soft_refusal_fallback("ambiguous_non_legal"),
+                )
+                print(f"\n\033[1;43m  YÊU CẦU LÀM RÕ/TỪ CHỐI NHẸ \033[0m \033[1;33m{display_msg}\033[0m")
+                return
+
+            if status == "unsafe" or action in ["reject_or_refuse", "blocked"]:
+                display_msg = self._generate_soft_refusal(
+                    query,
+                    "unsafe_query",
+                    fallback_answer=bot_msg or reason or self._soft_refusal_fallback("unsafe_query"),
+                )
+                print(f"\n\033[1;41m  BỊ CHẶN \033[0m \033[1;31m{display_msg}\033[0m")
                 return
         except Exception as e:
             print(f"\033[1;31m[LỖI GUARDIAN]: {e}\033[0m")
@@ -127,7 +249,7 @@ class RAGPipeline:
 
         if not raw_chunks:
             print("\n\033[1;43m  TRỐNG DATA \033[0m \033[1;33mHệ thống chuyển sang fallback.\033[0m")
-            fallback_msg = guard_res.get("response") or "Tôi không tìm thấy văn bản quy phạm pháp luật nào cụ thể cho trường hợp này."
+            fallback_msg = guard_res.get("response") or "Tôi chưa tìm thấy quy định pháp luật cụ thể nào trong cơ sở dữ liệu để trả lời câu hỏi này."
             self._print_result(fallback_msg, time.time() - t_total)
             return
 

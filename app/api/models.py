@@ -7,8 +7,8 @@ class ChatMessage(BaseModel):
     content: str = Field(..., description="Message content")
 
 class ChatRequest(BaseModel):
-    # LỚP 2: Giới hạn độ dài tối đa 500 ký tự để chống Prompt Injection nhồi nhét
-    query: str = Field(..., max_length=500, description="Phần câu hỏi mới nhất của người dùng")
+    # LỚP 2: Giới hạn độ dài tối đa 2000 ký tự để chống Prompt Injection nhồi nhét
+    query: str = Field(..., max_length=2000, description="Phần câu hỏi mới nhất của người dùng")
     history: Optional[List[ChatMessage]] = Field(default_factory=list, description="Lịch sử trò chuyện trước đó")
     stream: bool = Field(False, description="Cờ đánh dấu trả về dạng Stream, bỏ qua nếu chưa hỗ trợ")
 

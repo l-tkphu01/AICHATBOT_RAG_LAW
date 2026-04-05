@@ -37,6 +37,27 @@ runtime:
     fallback_model: "google/gemini-2.5-flash-lite"
     response_format: "json_object"
 
+  # Soft refusal: Dùng model nhỏ để sinh ra lời từ chối mềm mỏng, duyên dáng
+  soft_refusal:
+    provider: "groq"
+    model_id: "llama-3.1-8b-instant"
+    temperature: 0.6
+    max_tokens: 220
+    timeout_s: 5
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+
+  # Rút gọn câu hỏi dài, chống "loãng" RAG
+  input_summarizer:
+    provider: "groq"
+    model_id: "llama-3.1-8b-instant"
+    temperature: 0.1
+    max_tokens: 256
+    timeout_s: 5
+    response_format: "json_object"
+    fallback_provider: "openrouter"
+    fallback_model: "google/gemini-2.5-flash-lite"
+
   # Query rewriter / Multi-query generator: Dùng model nhỏ (8B) cho tác vụ rewrite ngữ pháp
   query_rewriter:
     provider: "groq"
@@ -55,31 +76,15 @@ runtime:
     timeout_s: 30
     batch_size: 96
 
-  # Router for query routing / classification support
-  semantic_router:
-    provider: "groq"
-    model_id: "llama-3.3-70b-versatile"
-    temperature: 0.0
-    timeout_s: 8
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
-
-  # Judge / evaluator for context quality or faithfulness checks
-  context_evaluator:
-    provider: "groq"
-    model_id: "llama-3.3-70b-versatile"
-    temperature: 0.0
-    timeout_s: 12
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
-
-  # RAG Generator model (Sinh cấu trả lời cuối - ngữ cảnh dài, giá cực rẻ qua OpenRouter)
+  # RAG Generator model (Sinh cấu trả lời cuối - ngữ cảnh dài, giá cực rẻ qua OpenRouter) 
   generator:
     provider: "openrouter"
-    model_id: "google/gemma-4-31b-it"
+    model_id: "google/gemini-2.5-flash-lite"
     temperature: 0.1
     max_tokens: 1536
     timeout_s: 30
+    fallback_provider: "groq"
+    fallback_model: "llama-3.3-70b-versatile"
 
   # Intent fallback classifier cho tiếng Việt
   intent_fallback:
