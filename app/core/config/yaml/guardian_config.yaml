@@ -1,29 +1,33 @@
 # ============================================================
 # GUARDIAN PIPELINE CONFIG - HYBRID (RULE + SELECTIVE MODEL)
-# UPDATED VERSION v2.0 (Feature-based + Cost Optimized)
+# UPDATED VERSION v2.1 (Optimized & Cleaned Structural Debt)
 # ============================================================
 
 metadata:
   name: "guardian_config"
-  version: "2.0.0"
+  version: "2.1.0"
   purpose: "Hybrid safety + intent guard (feature + model routing)"
   domain: "legal_rag_vn"
   scope: "legal_only"
 
+# ============================================================
+# [PHẦN 1] ACTIVE RUNTIME PIPELINE (ĐANG HOẠT ĐỘNG THỰC TẾ)
+# ============================================================
+
 # ----------------------------------------------------------
-# LỚP 0: Input Validation 
+# LỚP 0 & 1: VALIDATION & NORMALIZATION
 # ----------------------------------------------------------
 input_validation:
-  max_input_chars: 3000
-  summarize_threshold: 1500
-  max_input_lines: 40
+  max_input_chars: 2000
+  summarize_threshold: 1000
+  max_input_lines: 30
   hard_limit_action: "reject"
-  warning_threshold: 2500
+  warning_threshold: 1800
   summarize_action: "summarize_then_classify"
   reject_message_key: "input_too_long"
 
 # ----------------------------------------------------------
-# LỚP 1: Normalization 
+# LỚP 1: Normalization
 # ----------------------------------------------------------
 normalization:
   enabled: true
@@ -50,69 +54,21 @@ normalization:
     j: "gì"
 
 # ----------------------------------------------------------
-# LEGAL CONTEXT OVERRIDE (ANTI FALSE-POSITIVE)
-# ----------------------------------------------------------
-legal_context_override:
-  enabled: true
-
-  # Queries that ask legal analysis/penalty/definition information.
-  informational_patterns:
-    - 'b[ịi]\s*ph[ạa]t'
-    - 'm[ứu]c\s*ph[ạa]t'
-    - 'khung\s*h[ìi]nh\s*ph[ạa]t'
-    - 'ph[ạa]t\s*t[ùu]'
-    - 'bao\s*nhi[êe]u\s*n[ăa]m'
-    - 'm[ấa]y\s*n[ăa]m'
-    - 'c[óo]\s*b[ịi]\s*ph[ạa]t\s*kh[ôo]ng'
-    - 'x[ửu]\s*l[ýy]\s*th[ếe]\s*n[àa]o'
-    - 't[ộo]i\s*g[ìi]'
-    - 'tr[áa]ch\s*nhi[ệe]m\s*h[ìi]nh\s*s[ựu]'
-    - 'h[àa]nh\s*vi\s*n[àa]y\s*c[óo]\s*vi\s*ph[ạa]m\s*kh[ôo]ng'
-    - 'theo\s*(lu[ậa]t|[đd]i[ềe]u|kho[ảa]n)'
-    - 'quy\s*[đd][ịi]nh'
-
-  # Harmful instruction/evasion requests that must still be blocked.
-  instructional_or_evasion_patterns:
-    - 'c[áa]ch\s+(gi[ếe]t|l[ừu]a|hack|t[ấa]n\s*c[ôo]ng|x[óo]a\s*d[ấa]u\s*v[ếe]t|che\s*gi[ấa]u|tr[ốo]n\s*thu[ếe])'
-    - 'h[ướu][ớo]ng\s*d[ẫa]n\s+(gi[ếe]t|l[ừu]a|hack|t[ấa]n\s*c[ôo]ng|tr[ốo]n\s*thu[ếe])'
-    - 'l[àa]m\s*sao\s*(đ[ểe])?\s*(gi[ếe]t|l[ừu]a|hack|t[ấa]n\s*c[ôo]ng|tr[ốo]n\s*thu[ếe])'
-    - 'kh[ôo]ng\s*b[ịi]\s*b[ắa]t'
-    - 'tho[áa]t\s*t[ộo]i'
-    - 'l[áa]ch\s*lu[ậa]t'
-    - 'qua\s*m[ặa]t\s*c[ôo]ng\s*an'
-
-  # Extra legal anchors beyond fallback keywords.
-  legal_context_patterns:
-    - 't[ộo]i\s+[a-z0-9]+'
-    - '[đd]i[ềe]u\s*\d+'
-    - 'kho[ảa]n\s*\d+'
-    - 'khung\s*h[ìi]nh\s*ph[ạa]t'
-    - 'x[ửu]\s*ph[ạa]t'
-    - 'truy\s*c[ứu]\s*tr[áa]ch\s*nhi[ệe]m\s*h[ìi]nh\s*s[ựu]'
-
-  # Scores to neutralize when query is legal informational context.
-  neutralize_scores:
-    - banned_score
-    - harmful_score
-
-# ----------------------------------------------------------
-# LỚP 1b: REGEX → FEATURE
+# LỚP 2: FEATURE EXTRACTION (REGEX BASED)
 # ----------------------------------------------------------
 feature_extraction:
-
   regex_patterns:
 
-    banned: # Các dấu hiệu rõ ràng của nội dung bị cấm
+    banned:
       - 'b[ạa]o\s*l[ựu]c'
       - 'gi[ếe]t'
-      - 'đ[áa]nh\s*c[ắa]p'
       - 'ma\s*t[úu]y'
       - 'c[ờo]\s*b[ạa]c'
       - '\bh[a@4¥][\s\-_]*c[\s\-_]*k\b'
       - 'l[ừu]\s*đ[ảa]o'
       - 'h\.a\.c\.k'
 
-    injection: # Các dấu hiệu phổ biến của prompt injection
+    injection:
       - 'ignore.*(instruction|rule|prompt)'
       - 'system\s*prompt'
       - 'developer\s*message'
@@ -122,13 +78,12 @@ feature_extraction:
       - '\bsudo\b|\broot\b'
       - 'do\s+anything\s+now'
       - 'b[ỏo]\s*qua\s*(m[ọo]i\s*)?(quy\s*t[ắa]c|h[ướu][ớo]ng\s*d[ẫa]n|ch[íi]nh\s*s[áa]ch)'
-      - '([đd][âa]y\s*l[àa]\s*)?quy\s*t[ắa]c\s*m[ớo]i.*b[ạa]n\s*ph[ảa]i\s*tr[ảa]\s*l[ờo]i'
+      - '([đd][âa]y\s*l[àa]\s*)?quy\s*t[ắa]c\s*m[ớo]i'
       - 'ph[ảa]i\s*tr[ảa]\s*l[ờo]i\s*d[ùu]\s*vi\s*ph[ạa]m\s*lu[ậa]t'
-      - 'kh[ôo]ng\s*[đd][ượu]c\s*t[ừu]\s*ch[ốo]i'
       - '(gi[ảa]\s*v[ờo]|[đd][óo]ng\s*vai)\s*(l[àa]m\s*)?(system|developer|admin)'
-      - 'ti[ếe]t\s*l[ộo].*(system\s*prompt|prompt\s*h[ệe]\s*th[ốo]ng|ch[íi]nh\s*s[áa]ch\s*n[ộo]i\s*b[ộo])'
+      - 'ti[ếe]t\s*l[ộo].*(system\s*prompt|prompt\s*h[ệe]\s*th[ốo]ng)'
 
-    out_of_scope: # Các dấu hiệu rõ ràng cho thấy chủ đề không liên quan đến luật pháp, thường liên quan đến các lĩnh vực phổ biến như giải trí, thể thao, thời tiết, v.v.
+    out_of_scope:
       - 'th[ờo]i\s*ti[ếe]t'
       - 'b[óo]ng\s*[đd]á'
       - 'c[ôo]ng\s*ngh[ệe]'
@@ -136,39 +91,39 @@ feature_extraction:
       - 'l[ịi]ch\s*s[ửu]'
       - 'n[ềe]n\s*t[ảa]ng\s*code|l[ậa]p\s*tr[ìi]nh'
 
-    legal_anchor: # Các dấu hiệu pháp lý rõ ràng, thường liên quan đến việc trích dẫn luật, điều khoản, hoặc ngôn ngữ pháp lý đặc thù
+    legal_anchor:
       - 'đi[ềe]u\s*\d+'
       - 'kho[ảa]n\s*\d+'
       - 'đi[ểe]m\s*[a-zđ]'
       - 'lu[ậa]t|b[ộo]\s*lu[ậa]t|ngh[ịi]\s*đ[ịi]nh|th[ôo]ng\s*t[ưu]'
-      - 'điều\s+[a-z0-9]+'
       - 'chương\s+[ivxlcdm]+'
+      - 't[ộo]i\s+[a-z0-9]+'
+      - 'm[ứu]c\s*ph[ạa]t|khung\s*h[ìi]nh\s*ph[ạa]t'
 
-    harmful: # Ý định độc hại rõ ràng, thường liên quan đến hành vi phạm pháp hoặc gây hại trực tiếp
+    harmful:
       - 'l[ừưu]a\s*đ[ảa]o|g[ạa]t\s*ti[ềe]n|chi[ếe]m\s*[đd]o[ạa]t'
       - 'ph[ỉi]\s*b[áa]ng|gi[ảa]\s*m[ạa]o|m[ạa]o\s*danh'
-      - 'r[ửưu]a\s*ti[ềe]n|h[ốo]\s*l[ộe]|h[ốo]\s*ch[âa]m'
-      - 'tr[ộo]m\s*c[ấa]p|x[âa]m\s*nh[ậa]p|ph[áa]\s*h[ọo]i|ph[áa]\s*ho[ạa]i'
+      - 'r[ửưu]a\s*ti[ềe]n|h[ốo]\s*l[ộe]'
+      - 'tr[ộo]m\s*c[ấa]p|x[âa]m\s*nh[ậa]p|ph[áa]\s*ho[ạa]i'
       - 't[ấa]n\s*c[ôo]ng|ddos|sql\s*injection|csrf|xss|phishing'
 
-    malicious: # Ý định độc hại nhưng được ngụy trang dưới dạng câu hỏi về luật, thường liên quan đến việc trốn tránh trách nhiệm pháp lý hoặc khai thác lỗ hổng pháp luật
+    malicious:
       - 'tr[ốo]n\s*thu[ếe]|tr[áa]nh\s*thu[ếe]'
       - 'l[ậa]p\s*h[ợo]p\s*đ[ồo]ng\s*gi[ảa]'
       - 'l[áa]ch\s*t[àa]i\s*s[ảa]n|t[áa]n\s*t[àa]i\s*s[ảa]n'
       - 'chi[ếe]m\s*đo[ạa]t\s*t[àa]i\s*s[ảa]n'
 
-    ambiguity: # FIX ADDED - PHÁT HIỆN CÁC CÂU HỎI NGHI NGỜ (DỄ BỊ HIỂU NHẦM, CẦN MODEL XỬ LÝ)
+    ambiguity:
       - 'có bị phạt không'
       - 'có sao không'
       - 'có được không'
       - 'có vi phạm không'
       - 'có hợp pháp không'
 
-  # QUAN TRỌNG NHẤT
   feature_building:
 
     banned_score:
-      method: "binary" # Score nhị phân: 1 nếu có dấu hiệu bị cấm, 0 nếu không
+      method: "binary"
 
     injection_score:
       method: "binary"
@@ -183,7 +138,7 @@ feature_extraction:
       method: "binary"
 
     legal_anchor_score:
-      method: "count_weighted" 
+      method: "count_weighted"
       weight_per_hit: 0.3
       max_score: 1.0
 
@@ -194,22 +149,13 @@ feature_extraction:
 # ----------------------------------------------------------
 # LỚP 2: HARD GATE (CHỈ BLOCK NGUY HIỂM)
 # ----------------------------------------------------------
-hard_gate: 
-  enabled: true
 
-  # Legacy compatibility hints for older tests / readers:
-  # stop_on_safety_signal: true
-  # stop_on_out_of_scope_signal: true
-  # stop_on_missing_legal_anchor: true
-  # stop_on_short_ambiguous_query: true
-  # pass_action: "PASS"
-  # stop_action: "STOP"
+hard_gate:
+  enabled: true
 
   block_when:
     - injection_score == 1.0
-    - banned_score == 1.0
-    - harmful_score == 1.0
-    - malicious_score == 1.0
+    - malicious_score == 1.0 AND legal_anchor_score == 0
 
   action: "unsafe"
 
@@ -217,98 +163,16 @@ hard_gate:
 # LỚP 3: MODEL ROUTING (TIẾT KIỆM COST)
 # ----------------------------------------------------------
 model_routing:
-
   enabled: true
 
+  # Nếu câu hỏi an toàn %100 -> Bỏ qua LLM (Tiết kiệm 100% chi phí)
   skip_model_when:
-    - legal_anchor_score >= 0.9 AND ambiguity_score < 0.2 AND injection_score == 0 AND malicious_score == 0 AND out_of_scope_score == 0
+    - legal_anchor_score >= 0.9 AND ambiguity_score < 0.2 AND injection_score == 0 AND banned_score == 0 AND harmful_score == 0 AND malicious_score == 0 AND out_of_scope_score == 0
 
-  force_model_when:
-    - ambiguity_score >= 0.5
-    - legal_anchor_score < 0.4
-    - legal_anchor_score >= 0.3 AND ambiguity_score >= 0.3
-    - malicious_score == 1.0
+  # Các trường hợp còn lại mặc định sẽ gọi LLM (force_model_when không cần thiết vì hệ thống fail-secure default = True)
 
 # ----------------------------------------------------------
-# LỚP 4: MODEL SCORING
-# ----------------------------------------------------------
-model_scoring:
-  enabled: true
-
-  output_scores:
-    - harmful_score
-    - injection_score
-    - out_of_scope_score
-    - legal_relevance_score
-    - ambiguity_score
-    - malicious_score
-    - banned_score
-
-  output_confidence: true
-
-# ----------------------------------------------------------
-# LỚP 5: THRESHOLDS
-# ----------------------------------------------------------
-thresholds:
-  harmful_score_threshold: 0.7
-  injection_score_threshold: 0.65
-  out_of_scope_score_threshold: 0.7
-  legal_relevance_min: 0.5
-  confidence_min: 0.55
-  malicious_score_threshold: 0.8
-
-# ----------------------------------------------------------
-# LỚP 6: DECISION POLICY (REFINED)
-# ----------------------------------------------------------
-decision_policy:
-
-  rule_based:
-
-    # ❌ Không dùng rule để quyết định SAFE cuối cùng
-    safe_when: []
-
-    # ✅ Chỉ dùng rule để chặn chắc chắn (hard unsafe)
-    unsafe_when:
-      - injection_score == 1.0
-      - banned_score == 1.0
-      - harmful_score == 1.0
-      - malicious_score == 1.0
-
-  model_based:
-
-    # 🔴 Ưu tiên cao nhất: UNSAFE
-    - if: harmful_score >= 0.7
-      then: "unsafe"
-
-    - if: injection_score >= 0.65
-      then: "unsafe"
-
-    - if: malicious_score >= 0.8
-      then: "unsafe"
-
-    # ⚪ Sau đó mới xét OUT OF SCOPE
-    - if: out_of_scope_score >= 0.7
-      then: "out_of_scope"
-
-    - if: legal_relevance_score < 0.5
-      then: "out_of_scope"
-
-    # 🟢 Cuối cùng mới là SAFE
-    - else: "safe"
-    
-# ----------------------------------------------------------
-# LỚP 7: FALLBACK
-# ----------------------------------------------------------
-fallback:
-  enabled: true
-
-  activate_when:
-    - confidence < 0.55
-
-  action: "clarify"
-
-# ----------------------------------------------------------
-# LỚP 7b: INTENT FALLBACK (GOOD / BAD / OUT_OF_SCOPE)
+# LỚP 4: INTENT FALLBACK (LLM JUDGE - CẮT BỎ CÁC LEGACY SCORING NHƯ CHỈ ĐỊNH)
 # ----------------------------------------------------------
 intent_fallback:
   enabled: true
@@ -331,6 +195,7 @@ intent_fallback:
     - good_intent
     - bad_intent
     - out_of_scope
+    - chitchat
     - clarify
 
   decision_rules:
@@ -415,6 +280,10 @@ routing_labels:
     description: "Prompt injection hoặc intent độc hại"
   out_of_scope:
     description: "Ngoài phạm vi luật"
+  chitchat:
+    description: "Câu chào hỏi thông thường, không chứa nội dung pháp lý"
+  chitchat:
+    description: "Câu chào hỏi thông thường, không chứa nội dung pháp lý"
   clarify:
     description: "Chưa đủ độ tin cậy để kết luận, cần làm rõ thêm"
   good_intent:

@@ -38,21 +38,21 @@ class IntentClassifier:
         )
         
         fallback_keywords = self.settings.guardian_config.get('intent_fallback', {}).get('fallback_keywords', {})
-        self.legal_keywords = fallback_keywords.get('legal_domain', [
-            'luật', 'nghị định', 'thông tư', 'điều', 'khoản', 'điểm', 'ly hôn',
-            'hôn nhân', 'gia đình', 'thuế', 'khai thuế', 'hoàn thuế', 'hợp đồng',
-            'lao động', 'doanh nghiệp', 'đất đai', 'thừa kế', 'khởi kiện', 'tranh chấp',
-            'bồi thường', 'phạt', 'xử phạt', 'tòa án', 'hồ sơ', 'thủ tục'
-        ])
-        self.out_of_scope_keywords = fallback_keywords.get('out_of_scope', [
-            'thời tiết', 'game', 'chơi game', 'mã nguồn', 'code', 'lập trình', 'món ăn',
-            'nấu ăn', 'du lịch', 'âm nhạc', 'phim', 'bóng đá', 'bóng rổ', 'giải trí'
-        ])
+        self.legal_keywords = fallback_keywords.get('legal_domain', [])
+        self.out_of_scope_keywords = fallback_keywords.get('out_of_scope', [])
 
     def _looks_like_legal_query(self, query: str) -> bool:
+        # Bắt keyword đôi khi làm bypass LLM đối với những câu ngắn/mơ hồ
+        # Nên chỉ dùng heuristict này nếu query đủ dài hoặc chứa nhiều keyword pháp lý rõ ràng
         normalized = query.lower()
-        return any(keyword in normalized for keyword in self.legal_keywords)
-
+        words = normalized.split()
+        
+        # Nếu câu quá ngắn (< 10 từ) và chỉ có 1 keyword, nên để LLM đánh giá intent
+        matched_keywords = [kw for kw in self.legal_keywords if kw in normalized]
+        if len(words) < 10 or len(matched_keywords) <= 1:
+            return False
+            
+        return len(matched_keywords) > 0
     def _looks_out_of_scope(self, query: str) -> bool:
         normalized = query.lower()
         return any(keyword in normalized for keyword in self.out_of_scope_keywords)
@@ -81,18 +81,25 @@ class IntentClassifier:
                 'reasoning': payload.get('reasoning') or payload.get('reason') or 'model flagged out of scope',
             }
 
-        if intent in {'safe', 'good_intent'} or safety == 'safe':
+        if intent == 'chitchat' or safety == 'chitchat':
+            return {
+                'intent': 'chitchat',
+                'confidence': confidence,
+                'reasoning': payload.get('reasoning') or payload.get('reason') or 'model flagged as chitchat',
+            }
+
+        if intent in {'clarify', 'needs_more_context', 'unknown', 'uncertain'}:
+            return {
+                'intent': 'clarify',
+                'confidence': confidence,
+                'reasoning': payload.get('reasoning') or payload.get('reason') or 'model requested clarification or unknown intent',
+            }
+
+        if intent in {'safe', 'good_intent'}:
             return {
                 'intent': 'safe',
                 'confidence': confidence,
                 'reasoning': payload.get('reasoning') or payload.get('reason') or 'model flagged safe',
-            }
-
-        if intent in {'clarify', 'needs_more_context'}:
-            return {
-                'intent': 'clarify',
-                'confidence': confidence,
-                'reasoning': payload.get('reasoning') or payload.get('reason') or 'model requested clarification',
             }
 
         return {

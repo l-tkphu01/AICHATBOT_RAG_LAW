@@ -133,6 +133,9 @@ def chat_completion(
 			"X-Title": "AILawBot",
 		}
 		request_body.pop("response_format", None)
+		if max_tokens is not None:
+			# Some OpenRouter-backed models prefer max_completion_tokens naming.
+			request_body["max_completion_tokens"] = max_tokens
 		# Bật cờ reasoning theo Document của OpenRouter
 		request_body["reasoning"] = {"enabled": True}
 
