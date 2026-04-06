@@ -1,42 +1,8 @@
 # ============================================================
 # MODEL CONFIGS - Model refs theo chức năng
-#
-# File này map tên model theo vai trò sử dụng. Logic gọi model vẫn nằm
-# ở code, còn file này trả lời câu hỏi: model nào phục vụ chức năng nào.
 # ============================================================
 
 runtime:
-  # Main safety guard: Classify safe / unsafe / out-of-scope.
-  guard:
-    provider: "groq"
-    model_id: "llama-3.3-70b-versatile"
-    temperature: 0.1
-    max_tokens: 64
-    timeout_s: 12
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
-    response_format: "json_object"
-
-  # Fast guard: Lớp kiểm tra nhanh (dùng 70B qua Groq cho chắc chắn mà vẫn rẻ)
-  fast_guard:
-    provider: "groq"
-    model_id: "llama-3.3-70b-versatile"
-    temperature: 0.0
-    timeout_s: 8
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
-    score_threshold: 0.55
-
-  # Deep guard: Lớp kiểm tra sâu
-  deep_guard:
-    provider: "groq"
-    model_id: "llama-3.3-70b-versatile"
-    temperature: 0.0
-    timeout_s: 12
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
-    response_format: "json_object"
-
   # Soft refusal: Dùng model nhỏ để sinh ra lời từ chối mềm mỏng, duyên dáng
   soft_refusal:
     provider: "groq"
@@ -44,8 +10,8 @@ runtime:
     temperature: 0.6
     max_tokens: 220
     timeout_s: 5
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
+    # fallback_provider: "openrouter"
+    # fallback_model: "google/gemini-2.5-flash-lite"
 
   # Rút gọn câu hỏi dài, chống "loãng" RAG
   input_summarizer:
@@ -55,8 +21,8 @@ runtime:
     max_tokens: 256
     timeout_s: 5
     response_format: "json_object"
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
+    # fallback_provider: "openrouter"
+    # fallback_model: "google/gemini-2.5-flash-lite"
 
   # Query rewriter / Multi-query generator: Dùng model nhỏ (8B) cho tác vụ rewrite ngữ pháp
   query_rewriter:
@@ -66,8 +32,8 @@ runtime:
     max_tokens: 1024
     timeout_s: 8
     response_format: "json_object"
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
+    # fallback_provider: "openrouter"
+    # fallback_model: "google/gemini-2.5-flash-lite"
 
   # Embedding model for chunk/query vectorization
   embedding:
@@ -79,7 +45,7 @@ runtime:
   # RAG Generator model (Sinh cấu trả lời cuối - ngữ cảnh dài, giá cực rẻ qua OpenRouter) 
   generator:
     provider: "openrouter"
-    model_id: "google/gemini-2.5-flash-lite"
+    model_id: "..."
     temperature: 0.1
     max_tokens: 1536
     timeout_s: 30
@@ -94,5 +60,5 @@ runtime:
     max_tokens: 512
     reasoning_format: "hidden"
     timeout_s: 15
-    fallback_provider: "openrouter"
-    fallback_model: "google/gemini-2.5-flash-lite"
+    # fallback_provider: "openrouter"
+    # fallback_model: "google/gemini-2.5-flash-lite"

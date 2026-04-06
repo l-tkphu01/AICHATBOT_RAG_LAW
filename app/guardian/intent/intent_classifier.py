@@ -81,6 +81,13 @@ class IntentClassifier:
                 'reasoning': payload.get('reasoning') or payload.get('reason') or 'model flagged out of scope',
             }
 
+        if intent == 'chitchat' or safety == 'chitchat':
+            return {
+                'intent': 'chitchat',
+                'confidence': confidence,
+                'reasoning': payload.get('reasoning') or payload.get('reason') or 'model flagged as chitchat',
+            }
+
         if intent in {'clarify', 'needs_more_context', 'unknown', 'uncertain'}:
             return {
                 'intent': 'clarify',

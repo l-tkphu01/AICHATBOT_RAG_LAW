@@ -22,19 +22,6 @@ class GuardianPipeline:
         self.model_router = ModelRouter()
         self.intent_classifier = None  # Lazy load to avoid init API keys if not needed
         self.query_config = self.settings.query_processing.get("routing", {})
-        self.legal_override_config = self.settings.guardian_config.get("legal_context_override", {})
-        self._legal_info_patterns = self._compile_patterns(
-            self.legal_override_config.get("informational_patterns", [])
-        )
-        self._legal_context_patterns = self._compile_patterns(
-            self.legal_override_config.get("legal_context_patterns", [])
-        )
-        self._instructional_or_evasion_patterns = self._compile_patterns(
-            self.legal_override_config.get("instructional_or_evasion_patterns", [])
-        )
-        self._neutralize_scores = self.legal_override_config.get(
-            "neutralize_scores", ["banned_score", "harmful_score"]
-        )
         
         # Load system messages
         self.system_messages = self.settings.prompts_config.get("prompts", {})
@@ -63,23 +50,8 @@ class GuardianPipeline:
         return any(keyword in normalized for keyword in legal_signals)
 
     def _is_legal_information_query(self, query: str) -> bool:
-        has_legal_context = self._looks_legal_domain(query) or self._matches_any_pattern(
-            query, self._legal_context_patterns
-        )
-        asks_legal_information = self._matches_any_pattern(query, self._legal_info_patterns)
-        asks_instructional_or_evasion = self._matches_any_pattern(
-            query, self._instructional_or_evasion_patterns
-        )
-        return has_legal_context and asks_legal_information and not asks_instructional_or_evasion
-
-    def _should_apply_legal_context_override(self, query: str, features: Dict[str, float]) -> bool:
-        if not self.legal_override_config.get("enabled", True):
-            return False
-        if features.get("injection_score", 0.0) >= 1.0:
-            return False
-        if features.get("malicious_score", 0.0) >= 1.0:
-            return False
-        return self._is_legal_information_query(query)
+        has_legal_context = self._looks_legal_domain(query)
+        return has_legal_context
 
     def process_query(self, raw_query: str) -> Dict[str, Any]:
         """
@@ -148,13 +120,6 @@ class GuardianPipeline:
 
         # 3. Feature Extraction
         features = self.feature_extractor.extract_features(normalized_query)
-
-        # Legal-context override: avoid false positives on legal analysis queries.
-        if self._should_apply_legal_context_override(normalized_query, features):
-            features = dict(features)
-            for score_name in self._neutralize_scores:
-                if score_name in features:
-                    features[score_name] = 0.0
 
         result["features"] = features
         

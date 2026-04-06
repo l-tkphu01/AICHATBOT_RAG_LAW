@@ -17,7 +17,7 @@ reranker:
   rerank_top_k: 5
   score_threshold: 0.05
   batch_size: 16
-  max_length: 512
+  max_length: 1024
 
 query_processing:
   enabled: true
@@ -43,6 +43,9 @@ query_processing:
     out_of_scope:
       action: "reject_or_refuse"
       response_key: "refuse_legal_scope"
+    chitchat:
+      action: "reject_or_refuse"
+      response_key: "chitchat_response"
     clarify:
       action: "request_more_context"
       response_key: "intent_clarify_message"

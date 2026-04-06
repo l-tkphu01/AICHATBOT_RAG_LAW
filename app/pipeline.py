@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import re
 import logging
 import random
 from typing import List, Dict, Any, Optional
@@ -213,10 +214,27 @@ class LegalRAGPipeline:
                     model_cfg.get("max_tokens", 220),
                 )
 
-            return content if content else default_answer
+            sanitized = self._sanitize_soft_refusal_text(content)
+            return sanitized if sanitized else default_answer
         except Exception as e:
             logger.error(f"Soft refusal failed: {e}. Falling back to default message.")
             return default_answer
+
+    @staticmethod
+    def _sanitize_soft_refusal_text(text: str) -> str:
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return ""
+
+        cleaned = re.sub(
+            r"</?(system|user_input|assistant|rules|output_schema|context)>",
+            " ",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(r"^\s*system\s*[:\-]?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
 
     def run(self, query: str) -> Dict[str, Any]:
         """

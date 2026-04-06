@@ -1,6 +1,7 @@
 ﻿import sys
 import os
 import time
+import re
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -15,7 +16,6 @@ from app.ingestion.embedder import EmbeddingGenerator
 from app.ingestion.indexer import LegalIndexer
 from app.retrieval.reranker import DocumentReranker
 from app.generation.llm_client import chat_completion
-from app.generation.generate import generate_answer
 
 class RAGPipeline:
     def __init__(self):
@@ -143,9 +143,26 @@ class RAGPipeline:
             if not content:
                 content = str(resp.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
 
-            return content or default_answer
+            sanitized = self._sanitize_soft_refusal_text(content)
+            return sanitized or default_answer
         except Exception:
             return default_answer
+
+    @staticmethod
+    def _sanitize_soft_refusal_text(text: str) -> str:
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return ""
+
+        cleaned = re.sub(
+            r"</?(system|user_input|assistant|rules|output_schema|context)>",
+            " ",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(r"^\s*system\s*[:\-]?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
 
     def chat(self, query: str):
         print(f"\n\033[1;35m{'='*70}\033[0m")
@@ -303,14 +320,14 @@ class RAGPipeline:
         # =========================================================
         # BƯỚC 5: TẠO VĂN BẢN TRẢ LỜI
         # =========================================================
-        print("\n\033[1;34m[STEP 5] GENERATION (Lắp ghép Ngữ cảnh để AI Sinh)\033[0m")
+        print("\n\033[1;34m[STEP 5] GENERATION (ĐÃ VÔ HIỆU HÓA)\033[0m")
         tgen = time.time()
-        try:
-            final_answer = generate_answer(query, reranked_chunks)
-            print(f"  Tốn: {time.time() - tgen:.2f}s")
-        except Exception as e:
-            print(f"\033[1;31m[LỖI GENERATION]: {e}\033[0m")
-            final_answer = "Lỗi sinh văn bản từ AI. Vui lòng thử lại sau."
+        final_answer = (
+            "LLM generation đã được vô hiệu hóa trong scripts/test_pipeline_e2e.py.\n"
+            f"Số chunks sau rerank: {len(reranked_chunks)}.\n"
+            "Xem mục [TOP CHUNKS ĐƯỢC CHỌN] để đánh giá chất lượng truy xuất."
+        )
+        print(f"  Tốn: {time.time() - tgen:.2f}s")
 
         self._print_result(final_answer, time.time() - t_total)
 
