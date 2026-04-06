@@ -162,10 +162,11 @@ class GuardianPipeline:
             return result
 
         if intent_category == "uncertain" and self._is_legal_information_query(normalized_query):
+            fallback_cf = self.settings.guardian_config.get('intent_fallback', {}).get('fallback_thresholds', {}).get('safe_confidence', 0.65)
             result["intent"] = {
                 **intent_data,
                 "intent": "safe",
-                "confidence": max(confidence, 0.6),
+                "confidence": max(confidence, fallback_cf),
                 "reasoning": intent_data.get("reasoning", "Legal-domain fallback applied"),
             }
             result["action"] = "continue_pipeline"

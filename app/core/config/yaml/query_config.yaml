@@ -3,11 +3,11 @@
 # ============================================================
 
 retrieval:
-  dense_top_k: 15 # Số lượng document trả về từ dense retrieval (vector search) trước khi kết hợp với sparse retrieval.
-  sparse_top_k: 15 # Số lượng document trả về từ sparse retrieval (BM25) trước khi kết hợp với dense retrieval.
-  fusion_top_k: 20 # Số lượng document sau khi kết hợp dense + sparse, trước khi đưa vào reranker.
-  rerank_top_k: 5 # Số lượng document cuối cùng sau khi reranking, sẽ được gửi cho LLM để generation.
-  relevance_threshold: 0.3 # Ngưỡng điểm để coi một document là có liên quan, dùng để lọc trước khi trả về kết quả cho generation. Có thể điều chỉnh để cân bằng giữa độ bao phủ và độ chính xác của thông tin cung cấp cho LLM.
+  dense_top_k: 15 
+  sparse_top_k: 15 
+  fusion_top_k: 20 
+  rerank_top_k: 5 
+  relevance_threshold: 0.3 
   rrf_k: 60 
 
 reranker:
@@ -73,8 +73,3 @@ query_processing:
     prompt_keys:
       multi: "legal_query_rewrite_multi"
       short: "legal_query_rewrite_short"
-  
-  defaults:
-    classification_confidence_threshold: 0.65
-    guardian_fallback_confidence_threshold: 0.50
-    refuse_when_uncertain: true

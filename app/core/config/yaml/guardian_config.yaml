@@ -195,6 +195,7 @@ intent_fallback:
     - good_intent
     - bad_intent
     - out_of_scope
+    - chitchat
     - clarify
 
   decision_rules:
@@ -279,6 +280,10 @@ routing_labels:
     description: "Prompt injection hoặc intent độc hại"
   out_of_scope:
     description: "Ngoài phạm vi luật"
+  chitchat:
+    description: "Câu chào hỏi thông thường, không chứa nội dung pháp lý"
+  chitchat:
+    description: "Câu chào hỏi thông thường, không chứa nội dung pháp lý"
   clarify:
     description: "Chưa đủ độ tin cậy để kết luận, cần làm rõ thêm"
   good_intent:
