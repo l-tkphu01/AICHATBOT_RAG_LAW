@@ -16,6 +16,7 @@ MODULE_SECTION_KEYS = {
     "ingestion": {"pdf_processing", "chunking", "embedding", "vector_store"},
     "query": {"retrieval", "reranker", "query_processing"},
     "validation": {"validation"},
+    "history": {"history"},
 }
 SHARED_FRAGMENT_KEYS = {"guardian", "models", "prompts"}
 REQUIRED_TOP_LEVEL_SECTIONS = {
@@ -27,6 +28,7 @@ REQUIRED_TOP_LEVEL_SECTIONS = {
     "retrieval",
     "query_processing",
     "reranker",
+    "history",
 }
 
 
@@ -153,7 +155,8 @@ class Settings:
         self.retrieval = self.config["retrieval"]
         self.query_processing = self.config["query_processing"]
         self.reranker = self.config["reranker"]
-        self.validation = self.config["validation"]
+        self.validation = self.config.get("validation", {})
+        self.history = self.config["history"]
         self.database = self.config["database"]
         self.api = self.config["api"]
         self.logging = self.config["logging"]

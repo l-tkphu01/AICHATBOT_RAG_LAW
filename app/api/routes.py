@@ -25,9 +25,8 @@ def chat_endpoint(
     Trả về câu trả lời kèm các đoạn trích dẫn pháp lý.
     """
     try:
-        # Ở đây chúng ta tạm thời có thể truyền luôn query hiện tại vào pipeline
-        # (Chưa xử lý history trong đợt này nếu pipeline gốc chưa thiết kế)
-        result_dict = pipeline.run(request.query)
+        # Xử lý history truyền từ request (chứa các tin nhắn cũ)
+        result_dict = pipeline.run(query=request.query, history=request.history)
         
         return ChatResponse(
             answer=result_dict["answer"],

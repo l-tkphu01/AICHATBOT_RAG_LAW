@@ -23,4 +23,4 @@ config_sources:
   guardian: "./guardian_config.yaml"
   models: "./models_config.yaml"
   prompts: "./prompts_config.yaml"
-  prompts: "./prompts_config.yaml"
+  history: "./history_config.yaml"

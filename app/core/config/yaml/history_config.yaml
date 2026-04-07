@@ -1,0 +1,158 @@
+# ============================================================
+# CHAT HISTORY & SESSION CONFIGURATION
+# Chatbot Pháp Lý - Production Ready
+# ============================================================
+
+history:
+  enabled: true
+
+  # ============================================================
+  # 1. CONTEXT WINDOW (LLM INPUT CONTROL)
+  # ============================================================
+  context:
+    max_messages_per_prompt: 15
+    max_tokens_for_history: 2200
+
+    # hybrid = summarize + truncate
+    truncate_strategy: "hybrid"
+
+    # bắt đầu summarize khi vượt số message này
+    summarize_after_messages: 10
+
+    # giữ lại message quan trọng (system, legal references)
+    preserve_important_messages: true # ưu tiên giữ lại các message có vai trò system hoặc chứa nguồn luật quan trọng, ngay cả khi tổng số message vượt ngưỡng, để đảm bảo ngữ cảnh pháp lý không bị mất khi cắt bớt lịch sử chat.
+
+    # bật semantic filtering (embedding-based)
+    semantic_filtering: true
+    similarity_threshold: 0.75 # chỉ giữ message có similarity score >= 0.75 với prompt hiện tại, giúp tăng khả năng giữ lại ngữ cảnh liên quan ngay cả khi tổng
+
+  # ============================================================
+  # 2. SESSION MANAGEMENT
+  # ============================================================
+  session:
+    require_device_id: true # Bắt buộc phải có device_id để tạo session, giúp theo dõi và quản lý session tốt hơn, đồng thời hỗ trợ các tính năng bảo mật như giới hạn số session trên một thiết bị.
+    timeout_seconds: 1800 # 30 phút
+    max_sessions_per_device: 5 # Gioi hạn 5 thiết bị
+
+    # bảo mật nâng cao
+    rotate_session_id: true # Tạo session_id mới sau mỗi 10 phút hoạt động để giảm rủi ro session hijacking, đồng thời vẫn giữ liên kết với lịch sử chat cũ thông qua device_id (frontend sẽ thay mã session_id sau một khoản thời gian)
+    bind_ip: false # Kh bị thay đổi IP khi đang chat, vì có thể người dùng di chuyển mạng (wifi → 4G), nhưng vẫn có thể bật để phát hiện các hoạt động đáng ngờ nếu cần.
+    track_ip_change: true 
+    suspicious_ip_threshold: 5
+
+  # ============================================================
+  # 3. REDIS CACHE (FAST LAYER)
+  # ============================================================
+  cache:
+    enabled: true
+    fallback_to_db: true
+
+    ttl_seconds: 86400
+    prefix_key: "chat_session:"
+
+    # tối ưu hiệu năng
+    warmup_on_write: true
+    max_messages_in_cache: 20
+
+  # ============================================================
+  # 4. POSTGRESQL (SOURCE OF TRUTH)
+  # ============================================================
+  database:
+    table_sessions: "chat_sessions"
+    table_messages: "chat_messages"
+
+    track_metadata: true
+
+    # indexing để tăng tốc query
+    indexes:
+      - session_id
+      - device_id
+      - created_at
+
+    # partition dữ liệu theo tháng (scale lớn)
+    partition_by: "created_at_month"
+
+  # ============================================================
+  # 5. METADATA TRACKING
+  # ============================================================
+  metadata:
+    fields:
+      - input_tokens
+      - output_tokens
+      - latency_ms
+      - legal_sources
+      - confidence_score
+      - model_version
+
+  # ============================================================
+  # 6. DATA RETENTION & CLEANUP
+  # ============================================================
+  retention:
+    keep_idle_days: 180
+
+    cleanup_cron: "0 2 * * *"
+    cleanup_timezone: "Asia/Ho_Chi_Minh"
+    run_on_startup: true
+
+    # bảo vệ dữ liệu cá nhân
+    anonymize_after_days: 30
+    hard_delete_after_days: 180
+
+  # ============================================================
+  # 7. PRIVACY & COMPLIANCE (NĐ 13/2023)
+  # ============================================================
+  privacy:
+    mask_personal_data: true
+
+    detect_sensitive_fields:
+      - phone
+      - email
+      - id_number
+      - address
+      - bank_account
+
+    # log truy cập dữ liệu nhạy cảm
+    audit_sensitive_access: true
+
+  # ============================================================
+  # 8. RESILIENCE & FAILOVER
+  # ============================================================
+  resilience:
+    retry_on_failure: 2
+    timeout_ms: 8000
+
+    # fallback khi model chính lỗi
+    fallback_model: "gpt-lite"
+
+    # fallback khi Redis fail
+    cache_fail_strategy: "fallback_to_db"
+
+  # ============================================================
+  # 9. MONITORING & OBSERVABILITY
+  # ============================================================
+  monitoring:
+    enable_metrics: true
+    log_level: "info"
+    trace_requests: true
+
+    # tích hợp APM (nếu có)
+    enable_tracing_id: true
+
+  # ============================================================
+  # 10. LEGAL AI GUARDRAILS
+  # ============================================================
+  legal:
+    citation_required: true
+    allow_hallucination: false
+
+    # nếu không chắc → fallback search luật
+    fallback_to_search: true
+
+    # bắt buộc format trả lời
+    response_format:
+      include_legal_basis: true
+      include_confidence: true
+
+# ============================================================
+# END CONFIG
+# ============================================================

@@ -19,6 +19,7 @@ from app.ingestion.indexer import LegalIndexer
 from app.retrieval.reranker import DocumentReranker
 from app.generation.llm_client import chat_completion
 from app.generation.generate import generate_answer
+from app.generation.history_manager import HistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class LegalRAGPipeline:
         self.query_processor = QueryProcessor()
         self.embedder = EmbeddingGenerator()
         self.indexer = LegalIndexer()
+        self.history_manager = HistoryManager()
         
         try:
             self.reranker = DocumentReranker()
@@ -236,13 +238,13 @@ class LegalRAGPipeline:
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned
 
-    def run(self, query: str) -> Dict[str, Any]:
+    def run(self, query: str, history: Optional[List[Any]] = None) -> Dict[str, Any]:
         """
         Run the end-to-step RAG pipeline for a given query.
         
         Args:
             query (str): The user query.
-            
+            history (List[Any]): Chat history (list of previous messages).
         Returns:
             Dict[str, Any]: The pipeline execution result including answer and sources.
         """
@@ -450,9 +452,15 @@ class LegalRAGPipeline:
                     "score": round(score_val, 4)
                 })
 
+            # XỬ LÝ LỊCH SỬ CHAT TRƯỚC KHI GENERATE (HYBRID STRATEGY TỪ HISTORY_CONFIG.YAML)
+            processed_history = ""
+            if history:
+                processed_history = self.history_manager.process_history(history)
+                result["metadata"]["history_tokens"] = self.history_manager._approximate_tokens(processed_history)
+            
             # 5. GENERATION
             try:
-                final_answer = generate_answer(query, reranked_chunks)
+                final_answer = generate_answer(query, reranked_chunks, processed_history=processed_history)
                 result["answer"] = final_answer
             except Exception as e:
                 logger.error(f"Lỗi Generation: {e}", exc_info=True)

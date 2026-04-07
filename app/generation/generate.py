@@ -16,8 +16,8 @@ def build_system_prompt() -> str:
         )
     )
 
-def generate_answer(query: str, retrieved_chunks: List[Any]) -> str:
-    """Lấy kết quả Generation RAG từ LLM Client."""
+def generate_answer(query: str, retrieved_chunks: List[Any], processed_history: str = "") -> str:
+    """Lấy kết quả Generation RAG từ LLM Client, có truyền lịch sử tóm tắt (nếu có)."""
     try:
         gen_config = settings.resolve_ref("models_config.runtime.generator", default={})
     except AttributeError:
@@ -34,7 +34,10 @@ def generate_answer(query: str, retrieved_chunks: List[Any]) -> str:
     assembler = ContextAssembler(max_tokens=max_tokens)
     context_text = assembler.assemble(retrieved_chunks, char_limit=8000)
 
-    user_prompt = f"""Dựa vào các ngữ cảnh pháp lý sau đây, hãy trả lời câu hỏi của tôi:
+    # Nếu có lịch sử, nối khối <Lịch sử Trò chuyện>
+    history_block = f"\n<Lịch sử Trò chuyện>\n{processed_history}\n</Lịch sử Trò chuyện>\n" if processed_history else ""
+
+    user_prompt = f"""Dựa vào các ngữ cảnh pháp lý sau đây, hãy trả lời câu hỏi của tôi:{history_block}
 <Ngữ cảnh>
 {context_text}
 </Ngữ cảnh>
